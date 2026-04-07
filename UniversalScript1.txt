@@ -1,0 +1,280 @@
+--// 【终极合一版】现代多功能脚本 - UI已缩小1/3 + 确认生效
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+
+local states = {teleport = false, jump = false, noclip = false}
+
+local character, rootPart, humanoid
+local noclipConnection = nil
+
+local defaultWalkSpeed = 16
+local defaultJumpPower = 50
+
+-- 角色加载
+local function setupCharacter(char)
+    character = char
+    rootPart = char:WaitForChild("HumanoidRootPart")
+    humanoid = char:WaitForChild("Humanoid")
+    humanoid.WalkSpeed = defaultWalkSpeed
+    humanoid.JumpPower = defaultJumpPower
+end
+
+player.CharacterAdded:Connect(setupCharacter)
+if player.Character then setupCharacter(player.Character) end
+
+-- 创建 GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "UltimateToolGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- 主窗口（缩小1/3）
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 227, 0, 307)      -- 原来340×460 → 现在227×307
+frame.Position = UDim2.new(0, 20, 0, 20)
+frame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+frame.BorderSizePixel = 0
+frame.BackgroundTransparency = 0.05
+frame.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = frame
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(55, 55, 55)
+stroke.Thickness = 1.2
+stroke.Parent = frame
+
+-- 标题栏
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 32)
+titleBar.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+titleBar.Parent = frame
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 12)
+titleCorner.Parent = titleBar
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -85, 1, 0)
+title.Position = UDim2.new(0, 12, 0, 0)
+title.Text = "Roblox黑科技"
+title.TextColor3 = Color3.fromRGB(240, 240, 240)
+title.TextScaled = true
+title.Font = Enum.Font.GothamBold
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.BackgroundTransparency = 1
+title.Parent = titleBar
+
+-- 关闭按钮
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 26, 0, 26)
+closeBtn.Position = UDim2.new(1, -34, 0, 3)
+closeBtn.BackgroundTransparency = 1
+closeBtn.Text = "x"
+closeBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
+closeBtn.TextScaled = true
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.Parent = titleBar
+
+-- 创建开关按钮（缩小）
+local function createToggle(yOffset, text)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.9, 0, 0, 36)
+    btn.Position = UDim2.new(0.05, 0, 0, yOffset)
+    btn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextScaled = true
+    btn.Font = Enum.Font.GothamSemibold
+    btn.Parent = frame
+
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
+    return btn
+end
+
+local btnTeleport = createToggle(42,  "关闭点击传送")
+local btnJump     = createToggle(85,  "关闭无限跳跃")
+local btnNoclip   = createToggle(128, "关闭模型穿越")
+
+-- 走路速度调节
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(0.9, 0, 0, 20)
+speedLabel.Position = UDim2.new(0.05, 0, 0, 175)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "走路速度"
+speedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+speedLabel.TextScaled = true
+speedLabel.Font = Enum.Font.Gotham
+speedLabel.TextXAlignment = Enum.TextXAlignment.Left
+speedLabel.Parent = frame
+
+local speedBox = Instance.new("TextBox")
+speedBox.Size = UDim2.new(0.58, 0, 0, 32)
+speedBox.Position = UDim2.new(0.05, 0, 0, 198)
+speedBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+speedBox.Text = tostring(defaultWalkSpeed)
+speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedBox.TextScaled = true
+speedBox.Font = Enum.Font.GothamSemibold
+speedBox.Parent = frame
+Instance.new("UICorner", speedBox).CornerRadius = UDim.new(0, 8)
+
+local speedConfirm = Instance.new("TextButton")
+speedConfirm.Size = UDim2.new(0.29, 0, 0, 32)
+speedConfirm.Position = UDim2.new(0.66, 0, 0, 198)
+speedConfirm.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
+speedConfirm.Text = "确认"
+speedConfirm.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedConfirm.TextScaled = true
+speedConfirm.Font = Enum.Font.GothamBold
+speedConfirm.Parent = frame
+Instance.new("UICorner", speedConfirm).CornerRadius = UDim.new(0, 8)
+
+-- 跳跃高度调节
+local jumpLabel = Instance.new("TextLabel")
+jumpLabel.Size = UDim2.new(0.9, 0, 0, 20)
+jumpLabel.Position = UDim2.new(0.05, 0, 0, 238)
+jumpLabel.BackgroundTransparency = 1
+jumpLabel.Text = "跳跃高度"
+jumpLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+jumpLabel.TextScaled = true
+jumpLabel.Font = Enum.Font.Gotham
+jumpLabel.TextXAlignment = Enum.TextXAlignment.Left
+jumpLabel.Parent = frame
+
+local jumpBox = Instance.new("TextBox")
+jumpBox.Size = UDim2.new(0.58, 0, 0, 32)
+jumpBox.Position = UDim2.new(0.05, 0, 0, 261)
+jumpBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+jumpBox.Text = tostring(defaultJumpPower)
+jumpBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+jumpBox.TextScaled = true
+jumpBox.Font = Enum.Font.GothamSemibold
+jumpBox.Parent = frame
+Instance.new("UICorner", jumpBox).CornerRadius = UDim.new(0, 8)
+
+local jumpConfirm = Instance.new("TextButton")
+jumpConfirm.Size = UDim2.new(0.29, 0, 0, 32)
+jumpConfirm.Position = UDim2.new(0.66, 0, 0, 261)
+jumpConfirm.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
+jumpConfirm.Text = "确认"
+jumpConfirm.TextColor3 = Color3.fromRGB(255, 255, 255)
+jumpConfirm.TextScaled = true
+jumpConfirm.Font = Enum.Font.GothamBold
+jumpConfirm.Parent = frame
+Instance.new("UICorner", jumpConfirm).CornerRadius = UDim.new(0, 8)
+
+-- 拖动 + 关闭功能
+local dragging = false
+local dragStart, startPos
+
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
+end)
+
+-- 开关按钮逻辑
+btnTeleport.MouseButton1Click:Connect(function()
+    states.teleport = not states.teleport
+    btnTeleport.BackgroundColor3 = states.teleport and Color3.fromRGB(34, 197, 94) or Color3.fromRGB(239, 68, 68)
+    btnTeleport.Text = states.teleport and "开启点击传送" or "关闭点击传送"
+end)
+
+btnJump.MouseButton1Click:Connect(function()
+    states.jump = not states.jump
+    btnJump.BackgroundColor3 = states.jump and Color3.fromRGB(34, 197, 94) or Color3.fromRGB(239, 68, 68)
+    btnJump.Text = states.jump and "开启无限跳跃" or "关闭无限跳跃"
+end)
+
+btnNoclip.MouseButton1Click:Connect(function()
+    states.noclip = not states.noclip
+    btnNoclip.BackgroundColor3 = states.noclip and Color3.fromRGB(34, 197, 94) or Color3.fromRGB(239, 68, 68)
+    btnNoclip.Text = states.noclip and "开启模型穿越" or "关闭模型穿越"
+    
+    if states.noclip then
+        noclipConnection = RunService.Stepped:Connect(function()
+            if character then
+                for _, part in ipairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then part.CanCollide = false end
+                end
+            end
+        end)
+    else
+        if noclipConnection then noclipConnection:Disconnect() end
+        if character then
+            for _, part in ipairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then part.CanCollide = true end
+            end
+        end
+    end
+end)
+
+-- 确认按钮
+speedConfirm.MouseButton1Click:Connect(function()
+    if humanoid then
+        local num = tonumber(speedBox.Text)
+        if num then
+            defaultWalkSpeed = math.clamp(num, 0, 500)
+            humanoid.WalkSpeed = defaultWalkSpeed
+            speedConfirm.Text = "✓"
+            task.wait(0.8)
+            speedConfirm.Text = "确认"
+        end
+    end
+end)
+
+jumpConfirm.MouseButton1Click:Connect(function()
+    if humanoid then
+        local num = tonumber(jumpBox.Text)
+        if num then
+            defaultJumpPower = math.clamp(num, 0, 1000)
+            humanoid.JumpPower = defaultJumpPower
+            jumpConfirm.Text = "✓"
+            task.wait(0.8)
+            jumpConfirm.Text = "确认"
+        end
+    end
+end)
+
+-- 功能实现
+mouse.Button1Down:Connect(function()
+    if states.teleport and rootPart then
+        local hit = mouse.Hit
+        if hit then rootPart.CFrame = CFrame.new(hit.Position + Vector3.new(0, 5, 0)) end
+    end
+end)
+
+UserInputService.JumpRequest:Connect(function()
+    if states.jump and humanoid then
+        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+print("✅ 终极多功能脚本已加载 | UI已缩小1/3 | 输入后点击确认生效")
