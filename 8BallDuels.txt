@@ -1,0 +1,1835 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+_G.__POOLGOD_COMPILEOK=true
+_G.__POOLGOD_LOADERR=nil
+_G.__POOLGOD_LOOPERR=nil
+_G.__POOLGOD_VERSION="v7.0-almighty-perfected"
+if _G.__POOLGOD and type(_G.__POOLGOD.Unload)=="function"then
+pcall(_G.__POOLGOD.Unload)
+_G.__POOLGOD=nil
+end
+
+
+
+
+local a,aa=pcall(function()
+
+local a=game:GetService"Players"
+local b=game:GetService"RunService"
+local c=game:GetService"TweenService"
+local d=game:GetService"UserInputService"
+
+local e=a.LocalPlayer
+if not e then
+repeat task.wait()until a.LocalPlayer
+e=a.LocalPlayer
+end
+
+local f=game:GetService"ReplicatedStorage"
+local g=f:WaitForChild("Libraries",15)
+and f:FindFirstChild"Libraries"
+and f.Libraries:FindFirstChild"GameSpecific"
+and f.Libraries.GameSpecific:FindFirstChild"Pool"
+
+if not g then
+e:Kick"Pool God: Pool engine not found."
+return
+end
+
+local h=true
+local function req(i)
+local j=g:FindFirstChild(i)
+if not j then h=false;return nil end
+local k,l=pcall(require,j)
+if not k then h=false;return nil end
+return l
+end
+
+local i=req"PoolConstants"
+local j=req"PoolGeometry"
+local k=req"PoolPhysics"
+local l=req"PoolRules"
+local m=req"PoolStepper"
+local n=req"PoolMatchTypes"
+local o=req"PoolMatchReplica"
+local p=req"PoolInputController"
+local q=req"PoolHudRenderer"
+req"PoolTableRenderer2D"
+
+if not h or not(i and k and p)then
+e:Kick"Pool God: engine modules failed."
+return
+end
+
+
+
+
+local r={
+GodGuides=true,
+LongLines=true,
+LineLength=220,
+AimAssist=true,
+StickyAim=false,
+Highlight=true,
+OppAim=true,
+PowerMode="Almighty",
+GroupOverride="Auto",
+AutoPlaceBIH=true,
+AutoPlay=false,
+AutoDelay=0.7,
+PocketMarkers=true,
+GuideOpacity=0.85,
+SpinPreset="Center",
+}
+
+
+
+
+local s={
+Bg=Color3.fromRGB(11,13,24),
+BgCard=Color3.fromRGB(17,20,37),
+BgSub=Color3.fromRGB(24,28,52),
+Border=Color3.fromRGB(48,55,96),
+Text=Color3.fromRGB(242,245,255),
+TextDim=Color3.fromRGB(140,148,185),
+Accent=Color3.fromRGB(0,240,255),
+Accent2=Color3.fromRGB(138,43,226),
+Good=Color3.fromRGB(0,230,118),
+Bad=Color3.fromRGB(255,68,68),
+Warn=Color3.fromRGB(255,200,0),
+Enemy=Color3.fromRGB(255,110,50),
+White=Color3.fromRGB(255,255,255),
+Cue=Color3.fromRGB(255,255,255),
+Deflect=Color3.fromRGB(180,105,255),
+Almighty=Color3.fromRGB(255,215,0),
+}
+
+
+
+
+local t:{[string]:any}={}
+local u:{[string]:any}={
+Input=nil,
+Rules=nil,
+Hooks=t,
+}
+local v:{[string]:any}={}
+local w:{RBXScriptConnection}={}
+local x:(title:string,body:string,col:Color3?)->()
+
+local function onConn(y)
+w[#w+1]=y
+return y
+end
+
+local function installHooks()
+if p.Update and not t.InputUpdate then
+t.InputUpdate=p.Update
+p.Update=function(y,z,...)
+u.Input=y
+return t.InputUpdate(y,z,...)
+end
+end
+if p.SetState and not t.SetState then
+t.SetState=p.SetState
+p.SetState=function(y,z,...)
+u.Input=y
+return t.SetState(y,z,...)
+end
+end
+if l.BeginShot and not t.BeginShot then
+t.BeginShot=l.BeginShot
+l.BeginShot=function(y,z,...)
+u.Rules=y
+return t.BeginShot(y,z,...)
+end
+end
+if l.IsLegalFirstContact and not t.Legal then
+t.Legal=l.IsLegalFirstContact
+l.IsLegalFirstContact=function(y,z,A,...)
+u.Rules=y
+return t.Legal(y,z,A,...)
+end
+end
+end
+
+local function uninstallHooks()
+if t.SetState and p then p.SetState=t.SetState end
+if t.InputUpdate and p then p.Update=t.InputUpdate end
+if t.BeginShot and l then l.BeginShot=t.BeginShot end
+if t.Legal and l then l.IsLegalFirstContact=t.Legal end
+table.clear(t)
+end
+
+installHooks()
+
+
+
+
+local y={}
+do
+local z,A=pcall(j.GetPockets)
+if z and type(A)=="table"then
+for B,C in pairs(A)do
+if type(C)=="table"then
+local D=C.MouthCentre or C.Centre or C.Position or Vector2.zero
+local E=C.BowlCentre or D
+local F=C.Normal
+y[#y+1]={
+Id=C.Id,
+VisualCentre=D:Lerp(E,0.22),
+BowlCentre=E,
+MouthCentre=D,
+Normal=(F and typeof(F)=="Vector2")and F or Vector2.zero,
+Radius=2.1,
+}
+end
+end
+end
+end
+
+
+
+
+local z=workspace.CurrentCamera
+
+local function tableToScreen(A)
+if not A then return nil,false end
+local B=u.Input and u.Input.View
+if B and B.Mode=="3D"then
+if not z or z~=workspace.CurrentCamera then z=workspace.CurrentCamera end
+if not z then return nil,false end
+local C,D=z:WorldToViewportPoint(
+Vector3.new(A.X,5000+i.BallDiameter*0.5,-A.Y)
+)
+return Vector2.new(C.X,C.Y),D and C.Z>0
+end
+local C=B and B.Renderer2D
+if not C then return nil,false end
+local D=C.Root
+if not D or not D.Parent then return nil,false end
+local E,F=i.FrameWidth,i.FrameHeight
+local G=0.5+A.X/E
+local H=0.5-A.Y/F
+return D.AbsolutePosition+Vector2.new(G*D.AbsoluteSize.X,H*D.AbsoluteSize.Y),true
+end
+
+local function inchesToScreen(A)
+local B=u.Input and u.Input.View
+if B and B.Mode=="3D"then
+if not z or z~=workspace.CurrentCamera then z=workspace.CurrentCamera end
+if not z then return A end
+local C=z:WorldToViewportPoint(Vector3.new(0,5000,0))
+local D=z:WorldToViewportPoint(Vector3.new(A,5000,0))
+return math.abs(D.X-C.X)
+end
+local C=B and B.Renderer2D
+local D=C and C.Root
+if not D or not D.Parent then return A end
+return(A/i.FrameWidth)*D.AbsoluteSize.X
+end
+
+
+
+
+local A={
+lines={},circles={},
+usedL=0,usedC=0,
+Gui=nil,PowerTag=nil,PtStroke=nil,
+}
+
+do
+local B=Instance.new"ScreenGui"
+B.Name="PoolGodVis"
+B.ResetOnSpawn=false
+B.IgnoreGuiInset=true
+B.DisplayOrder=60000
+B.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
+B.Parent=e:WaitForChild"PlayerGui"
+A.Gui=B
+
+for C=1,50 do
+local D=Instance.new"Frame"
+D.AnchorPoint=Vector2.new(0.5,0.5)
+D.BorderSizePixel=0
+D.BackgroundColor3=s.White
+D.BackgroundTransparency=0.2
+D.Visible=false
+D.ZIndex=10
+D.Parent=B
+A.lines[#A.lines+1]=D
+end
+
+for C=1,80 do
+local D=Instance.new"Frame"
+D.AnchorPoint=Vector2.new(0.5,0.5)
+D.BackgroundTransparency=1
+D.Visible=false
+D.ZIndex=11
+
+local E=Instance.new("Frame",D)
+E.AnchorPoint=Vector2.new(0.5,0.5)
+E.Size=UDim2.fromScale(1,1)
+E.BackgroundTransparency=1
+Instance.new("UICorner",E).CornerRadius=UDim.new(1,0)
+local F=Instance.new("UIStroke",E)
+F.Thickness=2
+F.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
+
+local G=Instance.new("Frame",D)
+G.AnchorPoint=Vector2.new(0.5,0.5)
+G.Size=UDim2.fromScale(1,1)
+G.BackgroundColor3=s.White
+G.BackgroundTransparency=1
+G.BorderSizePixel=0
+Instance.new("UICorner",G).CornerRadius=UDim.new(1,0)
+D.Parent=B
+A.circles[#A.circles+1]={H=D,S=F,F=G}
+end
+
+local C=Instance.new"TextLabel"
+C.Name="PowerTag"
+C.AnchorPoint=Vector2.new(0.5,1)
+C.Size=UDim2.fromOffset(96,28)
+C.BackgroundColor3=s.BgCard
+C.BackgroundTransparency=0.12
+C.BorderSizePixel=0
+C.Font=Enum.Font.GothamBold
+C.TextSize=13
+C.TextColor3=s.Almighty
+C.Text=""
+C.Visible=false
+C.ZIndex=30
+C.Parent=B
+Instance.new("UICorner",C).CornerRadius=UDim.new(0,6)
+local D=Instance.new("UIStroke",C)
+D.Color=s.Almighty;D.Transparency=0.3;D.Thickness=1.2
+A.PowerTag=C
+A.PtStroke=D
+end
+
+local function opacity(B)
+local C=math.clamp(r.GuideOpacity,0.05,1)
+return math.clamp(1-(1-(B or 0))*C,0,1)
+end
+
+local function drawLine(B,C,D,E,F)
+if not(B and C)then return end
+local G=A.usedL
+if G>=#A.lines then return end
+local H=C-B
+local I=H.Magnitude
+if I<1 or I>9000 then return end
+G+=1;A.usedL=G
+local J=A.lines[G]
+J.Visible=true
+J.Position=UDim2.fromOffset((B.X+C.X)*0.5,(B.Y+C.Y)*0.5)
+J.Size=UDim2.fromOffset(I,E or 2)
+J.Rotation=math.deg(math.atan2(H.Y,H.X))
+J.BackgroundColor3=D or s.White
+J.BackgroundTransparency=opacity(F or 0.15)
+end
+
+local function drawCircle(B,C,D,E,F,G)
+if not B then return end
+local H=A.usedC
+if H>=#A.circles then return end
+H+=1;A.usedC=H
+local I=A.circles[H]
+local J=math.clamp(C*2,4,800)
+I.H.Visible=true
+I.H.Position=UDim2.fromOffset(B.X,B.Y)
+I.H.Size=UDim2.fromOffset(J,J)
+I.S.Color=D or s.White
+I.S.Thickness=E or 2
+I.S.Transparency=opacity(G or 0.15)
+I.F.BackgroundColor3=D or s.White
+I.F.BackgroundTransparency=opacity(F or 1)
+end
+
+local function beginDraw()
+A.usedL=0
+A.usedC=0
+end
+
+local function endDraw()
+for B=A.usedL+1,#A.lines do A.lines[B].Visible=false end
+for B=A.usedC+1,#A.circles do A.circles[B].H.Visible=false end
+end
+
+
+
+
+local function extendPath(B,C,D)
+local E,F=i.PlayWidth,i.PlayHeight
+local G=i.BallRadius
+local H={B}
+local I,J=B,C
+local K=0
+local L
+
+for M=1,6 do
+local N=D-K
+if N<=1 then break end
+local O,P=N
+for Q,R in ipairs(y)do
+local S=R.MouthCentre-I
+local T=S:Dot(J)
+if T>0.5 and T<O and(I+J*T-R.MouthCentre).Magnitude<3.2 then
+O,P=T,R
+end
+end
+local Q=J.X>1e-6 and(E/2-G-I.X)/J.X or(J.X<-1E-6 and(-E/2+G-I.X)/J.X or math.huge)
+local R=J.Y>1e-6 and(F/2-G-I.Y)/J.Y or(J.Y<-1E-6 and(-F/2+G-I.Y)/J.Y or math.huge)
+local S=math.min(Q,R)
+local T=S>0 and S<O
+local U=T and S or O
+local V=I+J*U
+H[#H+1]=V
+K+=U
+if T then
+J=Q<=R and Vector2.new(-J.X,J.Y)or Vector2.new(J.X,-J.Y)
+I=V
+else
+L=P
+break
+end
+end
+return H,L
+end
+
+local function drawSplitPath(B,C,D,E,F,G)
+local H=0
+for I=1,#B-1 do
+local J,K=B[I],B[I+1]
+local L=(K-J).Magnitude
+if L>0.05 then
+local M=H+L
+if not C or M<=C then
+local N,O=tableToScreen(J);local P,Q=tableToScreen(K)
+if N and P and(O or Q)then drawLine(N,P,D,E,F)end
+elseif H>=C then
+local N,O=tableToScreen(J);local P,Q=tableToScreen(K)
+if N and P and(O or Q)then drawLine(N,P,D,E,G)end
+else
+local N=J+(K-J).Unit*(C-H)
+local O,P=tableToScreen(J);local Q,R=tableToScreen(N);local S,T=tableToScreen(K)
+if O and Q and(P or R)then drawLine(O,Q,D,E,F)end
+if Q and S and(R or T)then drawLine(Q,S,D,E,G)end
+end
+H+=L
+end
+end
+end
+
+local function drawGhostChain(B,C,D,E,F)
+E=math.max(E or 5,1)
+local G=E*0.5
+local H=F or 20
+for I=1,#B-1 do
+local J,K=B[I],B[I+1]
+local L=(K-J).Magnitude
+if L>0.1 then
+local M=(K-J).Unit
+while G<=L-0.1 do
+local N,O=tableToScreen(J+M*G)
+if N and O then drawCircle(N,D,C,1.4,1.0,0.4)end
+H-=1
+if H<=0 then return end
+G+=E
+end
+G-=L
+end
+end
+end
+
+
+
+
+local function getCue(B)
+return B and B.Balls and B.Balls[i.CueBallNumber]
+end
+
+local function isActive(B)return B and not B.Pocketed and not B.Sinking end
+
+local function mySeat()
+local B,C=pcall(function()
+return o and o.GetState and o.GetState()
+end)
+if B and C then
+if n and n.SeatOf then
+local D,E=pcall(n.SeatOf,C,e.UserId)
+if D and E then return E,C end
+end
+if C.Seats then
+if C.Seats[1]==e.UserId then return 1,C end
+if C.Seats[2]==e.UserId then return 2,C end
+end
+if C.Players then
+for D,E in pairs(C.Players)do
+local F=(type(E)=="table"and(E.UserId or E.Id))or E
+if F==e.UserId then return D,C end
+end
+end
+end
+return nil,nil
+end
+
+local function isMyTurn()
+local B,C=mySeat()
+if not B or not C or C.Phase~="Playing"then return false end
+return C.Turn==B,C,B
+end
+
+local function getMyGroup()
+if r.GroupOverride=="Solid"then return"Solid"end
+if r.GroupOverride=="Stripe"then return"Stripe"end
+local B,C=mySeat()
+if B then
+if C and C.Groups and C.Groups[B]then return C.Groups[B]end
+if u.Rules and u.Rules.Groups and u.Rules.Groups[B]then return u.Rules.Groups[B]end
+local D=u.Input and u.Input.Hud
+if D and D.Groups and D.Groups[B]then return D.Groups[B]end
+end
+return nil
+end
+
+local function isBreak()
+local B=u.Input and u.Input.Simulation local
+C, D=mySeat()
+return(u.Rules and u.Rules.Phase=="Break")
+or(D and D.RulesPhase=="Break")
+or(D and D.Phase=="Break")
+or(B and B.IsBreakShot)
+end
+
+local function isLegalFirst(B)
+if not B or B==i.CueBallNumber then return false end
+if isBreak()then return true end
+local C=getMyGroup()
+if not C then return B~=8 end
+
+local D=u.Input and u.Input.Simulation
+local E=0
+if D and D.Balls then
+local F,G=(C=="Solid"and 1 or 9),(C=="Solid"and 7 or 15)
+for H=F,G do if isActive(D.Balls[H])then E+=1 end end
+end
+if E==0 then return B==8 end
+if B==8 then return false end
+if C=="Solid"then return B>=1 and B<=7 end
+if C=="Stripe"then return B>=9 and B<=15 end
+return false
+end
+
+local function getTargets(B)
+local C={}
+for D=1,15 do
+local E=B.Balls[D]
+if isActive(E)and isLegalFirst(D)then C[#C+1]=E end
+end
+local D=getMyGroup()
+local E="Open Table"
+if D=="Solid"then
+E=(#C==1 and C[1].Number==8)and"8-Ball"or"Solids"
+elseif D=="Stripe"then
+E=(#C==1 and C[1].Number==8)and"8-Ball"or"Stripes"
+end
+return C,E
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+local B={best=nil,bestKey=nil,solving=false,makeable=0,total=0,lastError=nil}
+
+local C={0.50,0.75,1.00}
+local D=6
+
+local function pathBlocked(E,F,G,H)
+local I=E.Order
+if not I then return false end
+local J=H-G
+local K=J:Dot(J)
+for L,M in ipairs(I)do
+local N=E.Balls[M]
+if N and N~=F and isActive(N)and N.Number~=i.CueBallNumber then
+local O
+if K<1e-6 then
+O=(N.Position-G).Magnitude
+else
+local P=math.clamp((N.Position-G):Dot(J)/K,0,1)
+O=(N.Position-(G+J*P)).Magnitude
+end
+if O<i.BallDiameter+0.05 then return true end
+end
+end
+return false
+end
+
+local function cuePathBlocked(E,F,G)
+local H=G-F
+local I=H:Dot(H)
+local J=E.Order
+if not J then return false end
+for K,L in ipairs(J)do
+local M=E.Balls[L]
+if M and isActive(M)and M.Number~=i.CueBallNumber then
+local N
+if I<1e-6 then
+N=(M.Position-F).Magnitude
+else
+local O=math.clamp((M.Position-F):Dot(H)/I,0,1)
+N=(M.Position-(F+H*O)).Magnitude
+end
+if N<i.BallDiameter+0.05 then return true end
+end
+end
+return false
+end
+
+
+local function simulate(E,F,G,H,I)
+if not(m and m.RunToSettle and k.Clone and k.Shoot)then
+return nil
+end
+local J,K=pcall(k.Clone,E)
+if not(J and K)then return nil end
+if not pcall(k.Shoot,K,F,G,H or Vector2.zero)then return nil end
+if not pcall(m.RunToSettle,K)then return nil end
+
+local L=K.Balls[i.CueBallNumber]
+local M=not L or L.Pocketed or L.Sinking
+
+local N=false
+if I then
+local O=K.Balls[I.Number]
+if O and(O.Pocketed or O.Sinking)then N=true end
+end
+
+local O=K.Balls[8]
+local P=O and(O.Pocketed or O.Sinking)
+
+local Q=0
+for R=1,15 do
+if isLegalFirst(R)then
+local S=E.Balls[R]
+local T=K.Balls[R]
+if S and isActive(S)and T and(T.Pocketed or T.Sinking)then
+Q+=1
+end
+end
+end
+
+
+local R=0
+if not M and L then
+local S=L.Position
+local T=0
+local U=0
+for V=1,15 do
+local W=K.Balls[V]
+if W and not W.Pocketed and not W.Sinking and isLegalFirst(V)then
+if I and V==I.Number then continue end
+U+=1
+local X=0
+for Y,Z in ipairs(y)do
+local _=Z.MouthCentre-W.Position
+if _.Magnitude>0.5 then
+local aa=_.Unit
+local ab=W.Position-aa*i.BallDiameter
+local ac=ab-S
+if ac.Magnitude>0.5 then
+local ad=ac.Unit:Dot(aa)
+if ad>X then X=ad end
+end
+end
+end
+local aa=(W.Position-S).Magnitude
+local ab=1-math.clamp(math.abs(aa-18)/40,0,1)
+local ac=math.clamp(X,0,1)
+local ad=ab*0.35+ac*0.65
+if ad>T then T=ad end
+end
+end
+if U==0 then
+T=1-math.clamp((math.abs(S.X)+math.abs(S.Y))/60,0,1)
+end
+R=T
+end
+
+return{
+TargetPotted=N,
+CuePotted=M,
+EightPotted=P,
+MyPotted=Q,
+LeaveScore=R,
+CueRest=(not M and L)and L.Position or nil,
+}
+end
+
+local function powerLabel(aa)
+if aa<0.55 then return"SOFT"
+elseif aa<0.68 then return"CTRL"
+elseif aa<0.82 then return"MED"
+elseif aa<0.95 then return"HARD"
+end
+return"MAX"
+end
+
+function B.compute(aa)
+if B.solving then return B.best end
+local ab=u.Input
+local ac=ab and ab.Simulation
+if not ac then return nil end
+local ad=getCue(ac)
+if not(ad and isActive(ad)and ac.Settled)then return nil end local
+
+E, F=mySeat()
+local G=(F and F.ShotIndex or 0)
+..":"..math.floor(ad.Position.X*4)
+..":"..math.floor(ad.Position.Y*4)
+if not aa and B.bestKey==G and B.best then return B.best end
+
+B.solving=true
+B.lastError=nil
+
+local ae,af=pcall(function()
+
+if isBreak()then
+local H,I=math.huge
+for J=1,15 do
+local K=ac.Balls[J]
+if isActive(K)then
+local L=(K.Position-ad.Position).Magnitude
+if L<H then H=L;I=K end
+end
+end
+if I then
+local J=(I.Position-ad.Position).Unit
+B.best={
+Dir=J,Power=1.0,Ball=I,Pocket=nil,
+Ghost=I.Position-J*i.BallDiameter,
+CosCut=1.0,Score=99999,Scratch=false,Dist=H,
+Kind="⚡ BREAK",PowerLabel="MAX",
+}
+B.bestKey=G
+return
+end
+end
+
+local H,I=getTargets(ac)
+local J=ab.Hud and ab.Hud.Spin or Vector2.zero
+
+
+
+
+local K={}
+for L,M in ipairs(H)do
+for N,O in ipairs(y)do
+local P=O.MouthCentre-M.Position
+local Q=P.Magnitude
+if Q<0.5 then continue end
+local R=P.Unit
+if O.Normal.Magnitude>0.01 and R:Dot(O.Normal)<0.12 then continue end
+local S=M.Position-R*i.BallDiameter
+local T=S-ad.Position
+local U=T.Magnitude
+if U<0.5 then continue end
+local V=T.Unit
+local W=V:Dot(R)
+if W<0.22 then continue end
+
+local X=pathBlocked(ac,M,M.Position,O.MouthCentre)
+local Y=cuePathBlocked(ac,ad.Position,S)
+if X then continue end
+
+local Z=W*5
++(1-math.clamp(Q/(i.PlayWidth*0.9),0,1))*2
++(1-math.clamp(U/(i.PlayWidth*0.9),0,1))*1
+if Y then Z-=3 end
+if M.Number==8 then Z+=10 end
+
+K[#K+1]={
+Dir=V,Ball=M,Pocket=O,Ghost=S,
+CosCut=W,GeoScore=Z,Dist=U,
+BpDist=Q,
+}
+end
+end
+
+
+table.sort(K,function(L,M)return L.GeoScore>M.GeoScore end)
+local L=math.min(#K,D)
+
+
+
+
+local M={}
+for N=1,L do
+local O=K[N]
+local P,Q,R=1.0,(-math.huge)
+
+for S,T in ipairs(C)do
+local U=simulate(ac,O.Dir,T,J,O.Ball)
+if U then
+local V=0
+if U.CuePotted then
+V=-99999
+elseif U.EightPotted and O.Ball.Number~=8 then
+V=-99999
+elseif U.TargetPotted then
+V=1000
+V+=U.LeaveScore*250
+V+=U.MyPotted*180
+if O.Ball.Number==8 then V+=5000 end
+V+=(1-T)*8
+else
+V=-40+U.LeaveScore*15
+end
+if V>Q then
+Q=V;P=T;R=U
+end
+end
+end
+
+
+if not R then
+Q=O.GeoScore
+P=1.0
+end
+
+local S=Q+O.CosCut*3+(1-math.clamp(O.BpDist/(i.PlayWidth*0.9),0,1))
+M[#M+1]={
+Dir=O.Dir,Power=P,Ball=O.Ball,Pocket=O.Pocket,
+Ghost=O.Ghost,CosCut=O.CosCut,Score=S,
+Scratch=R and R.CuePotted or false,
+Dist=O.Dist,Kind=I,
+PowerLabel=powerLabel(P),
+SimResult=R,
+}
+end
+
+
+for N=L+1,math.min(#K,20)do
+local O=K[N]
+M[#M+1]={
+Dir=O.Dir,Power=1.0,Ball=O.Ball,Pocket=O.Pocket,
+Ghost=O.Ghost,CosCut=O.CosCut,Score=O.GeoScore-500,
+Scratch=false,Dist=O.Dist,Kind=I,
+PowerLabel="MAX",SimResult=nil,
+}
+end
+
+
+
+
+local N=false
+for O,P in ipairs(M)do
+if P.Score>500 then N=true;break end
+end
+
+if not N and#H>=2 then
+local O=0
+for P,Q in ipairs(H)do
+if O>=6 then break end
+local R=Q.Position-ad.Position
+if R.Magnitude>0.5 then
+for S,T in ipairs(H)do
+if T==Q then continue end
+if O>=6 then break end
+for U,V in ipairs(y)do
+if O>=6 then break end
+local W=V.MouthCentre-T.Position
+if W.Magnitude<0.5 then continue end
+local X=W.Unit
+local Y=T.Position-X*i.BallDiameter
+local Z=Y-Q.Position
+if Z.Magnitude<0.5 then continue end
+local _=Z.Unit
+local ae=Q.Position-_*i.BallDiameter
+local af=ae-ad.Position
+if af.Magnitude<0.5 then continue end
+local ag=af.Unit
+if ag:Dot(_)<0.3 or _:Dot(X)<0.3 then continue end
+O+=1
+local ah=simulate(ac,ag,1.0,J,T)
+if ah and ah.TargetPotted and not ah.CuePotted then
+local ai=600+ah.LeaveScore*80
+if ah.EightPotted and T.Number~=8 then ai=-99999 end
+M[#M+1]={
+Dir=ag,Power=1.0,Ball=T,Pocket=V,
+Ghost=ae,CosCut=ag:Dot(_),Score=ai,
+Scratch=false,Dist=af.Magnitude,
+Kind="⚡ Combo",PowerLabel="MAX",SimResult=ah,
+}
+end
+end
+end
+end
+end
+end
+
+B.total=#H*math.max(#y,1)
+B.makeable=#M
+table.sort(M,function(ae,af)return ae.Score>af.Score end)
+
+if#M>0 and M[1].Score>-500 then
+B.best=M[1]
+else
+
+
+
+
+
+local ae,af=(-math.huge)
+for ag,ah in ipairs(H)do
+local ai=ah.Position-ad.Position
+if ai.Magnitude<0.5 then continue end
+local O=ai.Unit
+
+local P=simulate(ac,O,0.30,J,ah)
+if P then
+local Q=0
+if P.CuePotted then
+Q=-99999
+elseif P.EightPotted then
+Q=-99999
+elseif P.CueRest then
+
+local R=math.huge
+local S,T
+local U=getMyGroup()
+if U=="Solid"then S,T=9,15
+elseif U=="Stripe"then S,T=1,7
+else S,T=1,15 end
+for V=S,T do
+local W=ac.Balls[V]
+if W and isActive(W)then
+local X=(W.Position-P.CueRest).Magnitude
+if X<R then R=X end
+end
+end
+Q=math.clamp(R/40,0,1)*50
+
+local V,W=i.PlayWidth/2,i.PlayHeight/2
+local X=math.min(
+math.abs(P.CueRest.X-V),math.abs(P.CueRest.X+V),
+math.abs(P.CueRest.Y-W),math.abs(P.CueRest.Y+W)
+)
+if X<5 then Q+=15 end
+else
+Q=-ai.Magnitude*0.5
+end
+if Q>ae then
+ae=Q
+af={
+Dir=O,Power=0.30,Ball=ah,Pocket=nil,
+Ghost=ah.Position-O*i.BallDiameter,
+CosCut=0.5,Score=Q,Kind="🛡 Safety",
+Scratch=P.CuePotted or false,PowerLabel="SOFT",
+SimResult=P,
+}
+end
+end
+end
+B.best=af
+end
+B.bestKey=G
+end)
+
+if not ae then B.lastError=tostring(af)end
+B.solving=false
+return B.best
+end
+
+
+
+
+local aa
+local ab={}
+
+function ab.aimAnimating()return aa~=nil end
+
+function ab.aimSmooth(ac,ad)
+local ae=u.Input
+if not ae then return false end
+local af=ae.Direction
+if not af or af.Magnitude<1e-4 then ae.Direction=ac;return true end
+af=af.Unit
+local ag=ac.Unit
+local ah=math.clamp(af:Dot(ag),-1,1)
+local ai=math.acos(ah)
+if ai<1e-4 then ae.Direction=ag;return true end
+aa={
+base=math.atan2(af.Y,af.X),
+turn=(af.X*ag.Y-af.Y*ag.X)>=0 and 1 or-1,
+total=ai,
+t0=os.clock(),
+dur=math.max(ad or 0.28,0.06),
+}
+ae.AimLocked=true
+return true
+end
+
+function ab.canShoot()
+local ac=u.Input
+if not ac then return false,"No match"end
+local ad=ac.State
+if ad~="Aiming"and ad~="Charging"and ad~="BallInHand"then return false,"Not aiming"end
+if not isMyTurn()then return false,"Not your turn"end
+return true
+end
+
+function ab.aimAt(ac,ad)
+local ae=u.Input
+if not ae then return false end
+ae.Direction=ac
+if ad then
+ae.AimLocked=true
+if ae.Mouse and ae.Mouse.mouseViewport then
+ae.AimAnchor=ae.Mouse.mouseViewport
+end
+end
+return true
+end
+
+function ab.releaseAim()
+local ac=u.Input
+if not ac then return end
+ac.AimLocked=false
+ac.AimAnchor=nil
+end
+
+function ab.fire(ac,ad)
+local ae=u.Input
+if not ae or not ae.ShotBindable then return false,"no input"end
+local af,ag=ab.canShoot()
+if not af then return false,ag end
+if not getCue(ae.Simulation)then return false,"no cue"end
+local ah=(ae.Hud and ae.Hud.Spin)or Vector2.zero
+ae.Power=0
+ae.CanPlaceCueBall=false
+if q and q.SetPower and ae.Hud then
+pcall(q.SetPower,ae.Hud,0)
+end
+ae.ShotBindable:Fire(ac,math.clamp(ad,0,1),ah)
+return true
+end
+
+function ab.shootBest()
+local ac=B.best or B.compute(true)
+if not ac then
+return false,B.lastError or"No shot"
+end
+ab.aimAt(ac.Dir)
+local ad,ae=ab.fire(ac.Dir,ac.Power)
+if ad then
+local af=ac.Kind=="🛡 Safety"and"Safety"or string.format("Ball %d",ac.Ball.Number)
+x("⚡ Almighty",string.format("%s • %d%% [%s]",af,math.floor(ac.Power*100),ac.PowerLabel or"MAX"),s.Almighty)
+end
+return ad,ae
+end
+
+function ab.placeBest()
+local ac=u.Input
+if not ac or ac.State~="BallInHand"then return false,"No BIH"end
+local ad=ac.Simulation
+local ae=getCue(ad)
+if not ae then return false,"No cue"end
+
+local af,ag=i.PlayWidth,i.PlayHeight
+local ah=i.BallRadius+0.3
+local ai=(u.Rules and u.Rules.BehindHeadString)or false
+local E,F=-af/2+ah,af/2-ah
+local G,H=-ag/2+ah,ag/2-ah
+
+if ai then
+local I,J=pcall(function()return j.BreakSpot end)
+if I and typeof(J)=="Vector2"then
+local K=J.Y>=0 and 1 or-1
+local L=K*(ag/2-ah)
+local M=K*(ag/4)
+G,H=math.min(L,M),math.max(L,M)
+end
+end
+
+local I,J=(-math.huge)
+local K=getTargets(ad)
+
+for L=E,F,2.5 do
+for M=G,H,2.5 do
+local N=Vector2.new(L,M)
+local O=true
+local P=ad.Order
+if P then
+for Q,R in ipairs(P)do
+local S=ad.Balls[R]
+if S and S~=ae and isActive(S)and(S.Position-N).Magnitude<i.BallDiameter+0.1 then
+O=false;break
+end
+end
+end
+if O then
+local Q=-((L*L+M*M)*1e-4)
+for R,S in ipairs(K)do
+for T,U in ipairs(y)do
+local V=U.MouthCentre-S.Position
+if V.Magnitude>0.5 then
+local W=V.Unit
+local X=S.Position-W*i.BallDiameter
+local Y=X-N
+if Y.Magnitude>0.5 then
+local Z=Y.Unit:Dot(W)
+if Z>0.45 and not pathBlocked(ad,S,S.Position,U.MouthCentre)then
+Q+=Z*3
+end
+end
+end
+end
+end
+if Q>I then I=Q;J=N end
+end
+end
+end
+
+if not J then return false,"No spot"end
+ae.Position=J
+local L=ac.View
+if L and g:FindFirstChild"PoolViewController"then
+local M,N=pcall(require,g.PoolViewController)
+if M and N and N.SetBall then
+pcall(N.SetBall,L,i.CueBallNumber,J)
+end
+end
+x("🧲 Placed",string.format("(%.1f, %.1f)",J.X,J.Y),s.Good)
+return true
+end
+
+function ab.setSpin(ac)
+local ad=u.Input
+if not(ad and ad.Hud)then return end
+local ae=Vector2.zero
+if ac=="Follow"then ae=Vector2.new(0,0.7)
+elseif ac=="Draw"then ae=Vector2.new(0,-0.7)
+elseif ac=="Left"then ae=Vector2.new(-0.7,0)
+elseif ac=="Right"then ae=Vector2.new(0.7,0)end
+r.SpinPreset=ac
+if q and q.SetSpin then
+pcall(q.SetSpin,ad.Hud,ae)
+end
+if v.SpinBtns then
+for af,ag in pairs(v.SpinBtns)do
+ag.BackgroundColor3=(af==ac)and s.Accent or s.BgSub
+ag.TextColor3=(af==ac)and s.Bg or s.Text
+end
+end
+end
+
+
+
+
+local ac=Instance.new"Frame"
+ac.Name="Toasts"
+ac.AnchorPoint=Vector2.new(0.5,0)
+ac.Position=UDim2.new(0.5,0,0,60)
+ac.Size=UDim2.new(0,320,0,180)
+ac.BackgroundTransparency=1
+ac.Parent=Instance.new"Folder"
+
+local ad={}
+x=function(ae,af,ag)
+if not v.Gui then return end
+local ah=Instance.new"Frame"
+ah.BackgroundColor3=s.BgCard;ah.BorderSizePixel=0
+ah.Size=UDim2.new(1,0,0,48);ah.BackgroundTransparency=1;ah.Parent=ac
+Instance.new("UICorner",ah).CornerRadius=UDim.new(0,10)
+local ai=Instance.new("UIStroke",ah);ai.Color=ag or s.Accent;ai.Transparency=0.35;ai.Thickness=1.2
+
+local E=Instance.new("Frame",ah)
+E.Size=UDim2.new(0,4,1,-12);E.Position=UDim2.new(0,8,0,6)
+E.BackgroundColor3=ag or s.Accent;E.BorderSizePixel=0
+Instance.new("UICorner",E).CornerRadius=UDim.new(1,0)
+
+local F=Instance.new("TextLabel",ah)
+F.BackgroundTransparency=1;F.Position=UDim2.new(0,20,0,6);F.Size=UDim2.new(1,-26,0,18)
+F.Font=Enum.Font.GothamBold;F.TextSize=13;F.TextColor3=s.Text
+F.TextXAlignment=Enum.TextXAlignment.Left;F.Text=ae
+
+local G=Instance.new("TextLabel",ah)
+G.BackgroundTransparency=1;G.Position=UDim2.new(0,20,0,24);G.Size=UDim2.new(1,-26,0,16)
+G.Font=Enum.Font.Gotham;G.TextSize=11;G.TextColor3=s.TextDim
+G.TextXAlignment=Enum.TextXAlignment.Left;G.Text=af
+
+ad[#ad+1]=ah
+for H,I in ipairs(ad)do I.Position=UDim2.new(0,0,0,(H-1)*54)end
+c:Create(ah,TweenInfo.new(0.22,Enum.EasingStyle.Quart,Enum.EasingDirection.Out),{BackgroundTransparency=0.05}):Play()
+
+task.delay(2.5,function()
+c:Create(ah,TweenInfo.new(0.28),{BackgroundTransparency=1}):Play()
+for H,I in ipairs(ah:GetChildren())do
+if I:IsA"TextLabel"then c:Create(I,TweenInfo.new(0.28),{TextTransparency=1}):Play()
+elseif I:IsA"Frame"then c:Create(I,TweenInfo.new(0.28),{BackgroundTransparency=1}):Play()
+elseif I:IsA"UIStroke"then c:Create(I,TweenInfo.new(0.28),{Transparency=1}):Play()end
+end
+task.delay(0.32,function()
+local H=table.find(ad,ah)
+if H then table.remove(ad,H)end
+ah:Destroy()
+for I,J in ipairs(ad)do J.Position=UDim2.new(0,0,0,(I-1)*54)end
+end)
+end)
+end
+
+
+
+
+local function make(ae,af)
+local ag=Instance.new(ae)
+for ah,ai in pairs(af)do if ah~="Parent"then ag[ah]=ai end end
+if af.Parent then ag.Parent=af.Parent end
+return ag
+end
+
+local function addCorner(ae,af)return make("UICorner",{CornerRadius=UDim.new(0,af or 10),Parent=ae})end
+local function addStroke(ae,af,ag,ah)return make("UIStroke",{Color=af or s.Border,Thickness=ag or 1,Transparency=ah or 0.3,Parent=ae})end
+
+local function makeToggle(ae,af,ag,ah)
+local ai=make("Frame",{BackgroundColor3=s.BgCard,Size=UDim2.new(1,0,0,50),BorderSizePixel=0})
+addCorner(ai,10);addStroke(ai,s.Border,1,0.5)
+local E=ag
+local F=make("Frame",{AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-12,0.5,0),Size=UDim2.fromOffset(46,24),BackgroundColor3=E and s.Accent or s.BgSub,BorderSizePixel=0,Parent=ai})
+addCorner(F,12)
+local G=addStroke(F,E and s.Accent or s.Border,1.2,0.3)
+local H=make("Frame",{AnchorPoint=Vector2.new(0.5,0.5),Position=E and UDim2.new(1,-13,0.5,0)or UDim2.new(0,13,0.5,0),Size=UDim2.fromOffset(16,16),BackgroundColor3=E and s.Bg or s.White,BorderSizePixel=0,Parent=F})
+addCorner(H,8)
+make("TextLabel",{BackgroundTransparency=1,Position=UDim2.new(0,14,0,8),Size=UDim2.new(1,-75,0,18),Font=Enum.Font.GothamBold,TextSize=13,TextColor3=s.Text,TextXAlignment=Enum.TextXAlignment.Left,Text=ae,Parent=ai})
+make("TextLabel",{BackgroundTransparency=1,Position=UDim2.new(0,14,0,26),Size=UDim2.new(1,-75,0,14),Font=Enum.Font.Gotham,TextSize=10,TextColor3=s.TextDim,TextXAlignment=Enum.TextXAlignment.Left,Text=af or"",Parent=ai})
+local I=make("TextButton",{BackgroundTransparency=1,Size=UDim2.fromScale(1,1),Text="",Parent=ai})
+onConn(I.Activated:Connect(function()
+E=not E
+c:Create(F,TweenInfo.new(0.2),{BackgroundColor3=E and s.Accent or s.BgSub}):Play()
+G.Color=E and s.Accent or s.Border
+c:Create(H,TweenInfo.new(0.22,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Position=E and UDim2.new(1,-13,0.5,0)or UDim2.new(0,13,0.5,0),BackgroundColor3=E and s.Bg or s.White}):Play()
+task.spawn(ah,E)
+end))
+return ai
+end
+
+local function makeSlider(ae,af,ag,ah,ai,E,F)
+local G=make("Frame",{BackgroundColor3=s.BgCard,Size=UDim2.new(1,0,0,56),BorderSizePixel=0})
+addCorner(G,10);addStroke(G,s.Border,1,0.5)
+local H=ah
+make("TextLabel",{BackgroundTransparency=1,Position=UDim2.new(0,14,0,7),Size=UDim2.new(0.6,0,0,16),Font=Enum.Font.GothamBold,TextSize=12,TextColor3=s.Text,TextXAlignment=Enum.TextXAlignment.Left,Text=ae,Parent=G})
+local I=make("TextLabel",{BackgroundTransparency=1,AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-14,0,7),Size=UDim2.new(0.35,0,0,16),Font=Enum.Font.GothamBold,TextSize=12,TextColor3=s.Accent,TextXAlignment=Enum.TextXAlignment.Right,Text=tostring(ah)..(E or""),Parent=G})
+local J=make("Frame",{Position=UDim2.new(0,14,0,32),Size=UDim2.new(1,-28,0,6),BackgroundColor3=s.BgSub,BorderSizePixel=0,Parent=G})
+addCorner(J,3)
+local K=math.clamp((H-af)/(ag-af),0,1)
+local L=make("Frame",{Size=UDim2.new(K,0,1,0),BackgroundColor3=s.Accent,BorderSizePixel=0,Parent=J})
+addCorner(L,3)
+local M=make("Frame",{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new(K,0,0.5,0),Size=UDim2.fromOffset(14,14),BackgroundColor3=s.White,BorderSizePixel=0,Parent=J})
+addCorner(M,7)
+local N=function(N)local O=10^(ai or 0);return tostring(math.floor(N*O+0.5)/O)end
+local O=false
+local function setX(P)
+local Q=math.clamp((P-J.AbsolutePosition.X)/math.max(J.AbsoluteSize.X,1),0,1)
+H=af+(ag-af)*Q
+local R=(H-af)/(ag-af)
+L.Size=UDim2.new(R,0,1,0);M.Position=UDim2.new(R,0,0.5,0)
+I.Text=N(H)..(E or"");F(H)
+end
+local P=make("TextButton",{BackgroundTransparency=1,Position=UDim2.new(0,0,0,22),Size=UDim2.new(1,0,0,36),Text="",Parent=G})
+onConn(P.InputBegan:Connect(function(Q)
+if Q.UserInputType==Enum.UserInputType.MouseButton1 or Q.UserInputType==Enum.UserInputType.Touch then O=true;setX(Q.Position.X)end
+end))
+onConn(P.InputEnded:Connect(function(Q)
+if Q.UserInputType==Enum.UserInputType.MouseButton1 or Q.UserInputType==Enum.UserInputType.Touch then O=false end
+end))
+onConn(d.InputChanged:Connect(function(Q)
+if O and(Q.UserInputType==Enum.UserInputType.MouseMovement or Q.UserInputType==Enum.UserInputType.Touch)then setX(Q.Position.X)end
+end))
+return G
+end
+
+local function makeBtn(ae,af,ag,ah,ai)
+local E=make("TextButton",{Size=ai or UDim2.new(1,0,0,ag or 38),BackgroundColor3=af or s.BgCard,Font=Enum.Font.GothamBold,TextSize=12,TextColor3=s.Text,Text=ae,BorderSizePixel=0})
+addCorner(E,10);addStroke(E,s.Border,1,0.4)
+onConn(E.Activated:Connect(function()task.spawn(ah)end))
+return E
+end
+
+local function makeSec(ae)
+local af=make("Frame",{BackgroundTransparency=1,Size=UDim2.new(1,0,0,24)})
+make("TextLabel",{BackgroundTransparency=1,Position=UDim2.new(0,4,0,4),Size=UDim2.new(1,-8,1,0),Font=Enum.Font.GothamBold,TextSize=11,TextColor3=s.Almighty,TextXAlignment=Enum.TextXAlignment.Left,Text="▍ "..ae:upper(),Parent=af})
+return af
+end
+
+
+
+
+do
+local ae=make("ScreenGui",{Name="PoolGodUI",ResetOnSpawn=false,IgnoreGuiInset=true,DisplayOrder=100000,ZIndexBehavior=Enum.ZIndexBehavior.Sibling,Parent=e:WaitForChild"PlayerGui"})
+v.Gui=ae
+
+local af=make("TextButton",{Name="Orb",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new(0,36,0.8,0),Size=UDim2.fromOffset(58,58),BackgroundColor3=s.BgCard,Text="⚡",TextSize=24,Font=Enum.Font.GothamBold,TextColor3=s.Almighty,BorderSizePixel=0,Parent=ae})
+addCorner(af,29);addStroke(af,s.Almighty,2,0.1)
+local ag=make("Frame",{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(58,58),BackgroundTransparency=1,Parent=af})
+addCorner(ag,29)
+local ah=addStroke(ag,s.Accent2,3,0.3)
+task.spawn(function()
+while af.Parent do
+c:Create(ah,TweenInfo.new(1.4,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{Transparency=0.8,Thickness=6}):Play()
+task.wait(1.4)
+c:Create(ah,TweenInfo.new(1.4,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{Transparency=0.3,Thickness=2.5}):Play()
+task.wait(1.4)
+end
+end)
+
+local ai=z and z.ViewportSize or Vector2.new(1280,720)
+local E=math.clamp(ai.X-20,280,350)
+local F=math.clamp(ai.Y-50,360,520)
+
+local G=make("CanvasGroup",{Name="Panel",AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new(0.5,0,0.5,0),Size=UDim2.fromOffset(E,F),BackgroundColor3=s.Bg,BorderSizePixel=0,GroupTransparency=1,Visible=false,Parent=ae})
+addCorner(G,14);addStroke(G,s.Border,1.2,0.2)
+v.Panel=G
+
+local H=false
+v.isOpen=function()return H end
+v.setOpen=function(I)
+H=I
+if I then
+G.Visible=true;G.Position=UDim2.new(0.5,0,0.5,30)
+c:Create(G,TweenInfo.new(0.28,Enum.EasingStyle.Quart,Enum.EasingDirection.Out),{Position=UDim2.new(0.5,0,0.5,0),GroupTransparency=0}):Play()
+else
+c:Create(G,TweenInfo.new(0.22,Enum.EasingStyle.Quart,Enum.EasingDirection.In),{Position=UDim2.new(0.5,0,0.5,30),GroupTransparency=1}):Play()
+task.delay(0.24,function()if not H then G.Visible=false end end)
+end
+end
+
+local I=make("Frame",{Size=UDim2.new(1,0,0,52),BackgroundColor3=s.BgCard,BorderSizePixel=0,Parent=G})
+addCorner(I,14)
+make("Frame",{Position=UDim2.new(0,0,1,-14),Size=UDim2.new(1,0,0,14),BackgroundColor3=s.BgCard,BorderSizePixel=0,Parent=I})
+make("TextLabel",{BackgroundTransparency=1,Position=UDim2.new(0,16,0,8),Size=UDim2.new(1,-70,0,20),Font=Enum.Font.GothamBold,TextSize=17,TextColor3=s.Almighty,TextXAlignment=Enum.TextXAlignment.Left,Text="⚡ POOL GOD",Parent=I})
+make("TextLabel",{BackgroundTransparency=1,Position=UDim2.new(0,16,0,28),Size=UDim2.new(1,-70,0,14),Font=Enum.Font.Gotham,TextSize=10,TextColor3=s.TextDim,TextXAlignment=Enum.TextXAlignment.Left,Text="ALMIGHTY PERFECTED v7.0",Parent=I})
+local J=make("TextButton",{AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-12,0.5,0),Size=UDim2.fromOffset(28,28),BackgroundColor3=s.BgSub,Text="✕",TextSize=12,Font=Enum.Font.GothamBold,TextColor3=s.Bad,BorderSizePixel=0,Parent=I})
+addCorner(J,8)
+onConn(J.Activated:Connect(function()v.setOpen(false)end))
+
+local K=make("Frame",{Position=UDim2.new(0,12,0,58),Size=UDim2.new(1,-24,0,28),BackgroundTransparency=1,Parent=G})
+make("UIListLayout",{FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,6),Parent=K})
+local function mkChip()
+local L=make("Frame",{Size=UDim2.new(0.333,-4,1,0),BackgroundColor3=s.BgCard,BorderSizePixel=0,Parent=K})
+addCorner(L,8);addStroke(L,s.Border,1,0.5)
+return make("TextLabel",{BackgroundTransparency=1,Size=UDim2.fromScale(1,1),Font=Enum.Font.GothamBold,TextSize=10,TextColor3=s.TextDim,Text="—",Parent=L})
+end
+v.ChipTurn=mkChip();v.ChipGroup=mkChip();v.ChipInfo=mkChip()
+
+local L=make("ScrollingFrame",{Position=UDim2.new(0,12,0,92),Size=UDim2.new(1,-24,1,-132),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=s.Accent,CanvasSize=UDim2.new(0,0,0,0),AutomaticCanvasSize=Enum.AutomaticSize.Y,ElasticBehavior=Enum.ElasticBehavior.Always,Parent=G})
+make("UIListLayout",{Padding=UDim.new(0,6),Parent=L})
+make("UIPadding",{PaddingRight=UDim.new(0,4),Parent=L})
+local function add(M)M.Parent=L end
+
+
+add(makeSec"🎱 Target Group")
+local M=make("Frame",{BackgroundTransparency=1,Size=UDim2.new(1,0,0,34)})
+make("UIListLayout",{FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,5),Parent=M})
+v.GBtns={}
+local function mkG(N,O)
+local P=make("TextButton",{Size=UDim2.new(0.333,-4,1,0),BackgroundColor3=(r.GroupOverride==N)and s.Accent or s.BgCard,Font=Enum.Font.GothamBold,TextSize=11,TextColor3=(r.GroupOverride==N)and s.Bg or s.Text,Text=O,BorderSizePixel=0,Parent=M})
+addCorner(P,8);addStroke(P,s.Border,1,0.4)
+onConn(P.Activated:Connect(function()
+r.GroupOverride=N
+for Q,R in pairs(v.GBtns)do R.BackgroundColor3=(Q==N)and s.Accent or s.BgCard;R.TextColor3=(Q==N)and s.Bg or s.Text end
+B.compute(true)
+end))
+v.GBtns[N]=P
+end
+mkG("Auto","AUTO");mkG("Solid","● SOLIDS");mkG("Stripe","◍ STRIPES")
+add(M)
+
+
+add(makeSec"🎯 Aiming & Visuals")
+add(makeToggle("God Aim Guides","Engine trajectory",r.GodGuides,function(N)r.GodGuides=N end))
+add(makeToggle("⚡ Long Bounce Lines","Cushion reflections",r.LongLines,function(N)r.LongLines=N end))
+add(makeSlider("Path Length",60,400,r.LineLength,0," in",function(N)r.LineLength=N end))
+add(makeSlider("Guide Opacity",0.1,1,r.GuideOpacity,2,"x",function(N)r.GuideOpacity=N end))
+add(makeToggle("Pocket Markers","Rings on pocket holes",r.PocketMarkers,function(N)r.PocketMarkers=N end))
+add(makeToggle("Highlight My Balls","Ring legal targets",r.Highlight,function(N)r.Highlight=N end))
+add(makeToggle("Aim Assist","Magnetic snap",r.AimAssist,function(N)r.AimAssist=N;if not N then ab.releaseAim()end end))
+add(makeToggle("Sticky Aimbot","Lock to best target",r.StickyAim,function(N)
+r.StickyAim=N
+if N then B.compute(true);if B.best and u.Input and u.Input.State=="Aiming"then ab.aimAt(B.best.Dir,true)end
+else ab.releaseAim()end
+end))
+
+local N=make("Frame",{BackgroundTransparency=1,Size=UDim2.new(1,0,0,38)})
+make("UIListLayout",{FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,6),Parent=N})
+local O=makeBtn("🎯 SNAP AIM",s.Accent2,38,function()
+local O=B.compute(true)
+if O and u.Input then ab.aimAt(O.Dir,true);task.delay(0.8,ab.releaseAim)
+x("🎯 Locked",string.format("Ball %d",O.Ball.Number),s.Accent)
+else x("🎯 Aim","No shot",s.Bad)end
+end,UDim2.new(0.5,-3,1,0))
+O.Parent=N
+local P=makeBtn("⚡ ALMIGHTY",s.Almighty,38,function()
+local P,Q=ab.shootBest();if not P then x("⚡ Failed",Q or"err",s.Bad)end
+end,UDim2.new(0.5,-3,1,0))
+P.TextColor3=s.Bg;P.Parent=N
+add(N)
+
+
+add(makeSec"∞ Almighty Power Engine")
+local Q=make("Frame",{BackgroundColor3=s.BgCard,Size=UDim2.new(1,0,0,52),BorderSizePixel=0})
+addCorner(Q,10);addStroke(Q,s.Almighty,1.2,0.3)
+make("TextLabel",{BackgroundTransparency=1,Position=UDim2.new(0,14,0,6),Size=UDim2.new(1,-28,0,16),Font=Enum.Font.GothamBold,TextSize=13,TextColor3=s.Almighty,TextXAlignment=Enum.TextXAlignment.Left,Text="⚡ ALMIGHTY — ACTIVE",Parent=Q})
+make("TextLabel",{BackgroundTransparency=1,Position=UDim2.new(0,14,0,24),Size=UDim2.new(1,-28,0,22),Font=Enum.Font.Gotham,TextSize=10,TextColor3=s.TextDim,TextXAlignment=Enum.TextXAlignment.Left,TextWrapped=true,Text="2-Phase solver. Geo screen → top 6 simulated × 3 powers. Zero lag.",Parent=Q})
+add(Q)
+
+
+add(makeSec"🤖 Never-Loses Auto Play")
+add(makeToggle("Auto Play (AFK)","Runs out the table autonomously",r.AutoPlay,function(R)
+r.AutoPlay=R
+x("🤖 Auto",R and"Active — never-loses engine"or"Off",R and s.Good or s.TextDim)
+end))
+add(makeSlider("Reaction Delay",0.3,3,r.AutoDelay,1,"s",function(R)r.AutoDelay=R end))
+add(makeToggle("Auto Place BIH","Snap cue to runout spot",r.AutoPlaceBIH,function(R)r.AutoPlaceBIH=R end))
+add(makeBtn("🧲 PLACE BEST SPOT",s.BgCard,36,function()
+local R,S=ab.placeBest();if not R then x("🧲 Fail",S or"err",s.Warn)end
+end))
+
+
+add(makeSec"🌀 Spin")
+local R=make("Frame",{BackgroundTransparency=1,Size=UDim2.new(1,0,0,32)})
+make("UIListLayout",{FillDirection=Enum.FillDirection.Horizontal,Padding=UDim.new(0,5),Parent=R})
+v.SpinBtns={}
+local function mkSpin(S,T)
+local U=makeBtn(T,s.BgCard,32,function()ab.setSpin(S)end,UDim2.new(0.25,-4,1,0))
+U.Parent=R;U.TextSize=10;v.SpinBtns[S]=U
+end
+mkSpin("Center","• Ctr");mkSpin("Follow","⬆ Top");mkSpin("Draw","⬇ Back");mkSpin("Left","◀ Left")
+add(R)
+
+
+add(makeSec"👁 Opponent X-Ray")
+add(makeToggle("Opponent Path","See their bounce plan",r.OppAim,function(S)r.OppAim=S end))
+
+
+local S=make("Frame",{AnchorPoint=Vector2.new(0.5,1),Position=UDim2.new(0.5,0,1,-8),Size=UDim2.new(1,-24,0,26),BackgroundTransparency=1,Parent=G})
+make("TextLabel",{BackgroundTransparency=1,Position=UDim2.new(0,0,0,0),Size=UDim2.new(1,-85,1,0),Font=Enum.Font.GothamBold,TextSize=11,TextColor3=s.TextDim,TextXAlignment=Enum.TextXAlignment.Left,Text="made with 💜 by doinieate",Parent=S})
+local T=makeBtn("UNLOAD",s.BgSub,26,function()_G.__POOLGOD.Unload()end,UDim2.new(0,75,1,0))
+T.AnchorPoint=Vector2.new(1,0.5);T.Position=UDim2.new(1,0,0.5,0);T.TextColor3=s.Bad;T.TextSize=10;T.Parent=S
+
+
+local function enableDrag(U,V)
+local W,X,Y=false
+onConn(U.InputBegan:Connect(function(Z)
+if Z.UserInputType==Enum.UserInputType.MouseButton1 or Z.UserInputType==Enum.UserInputType.Touch then W=true;X=Z.Position;Y=V.Position end
+end))
+onConn(d.InputChanged:Connect(function(Z)
+if W and(Z.UserInputType==Enum.UserInputType.MouseMovement or Z.UserInputType==Enum.UserInputType.Touch)then
+local _=Z.Position-X
+V.Position=UDim2.new(Y.X.Scale,Y.X.Offset+_.X,Y.Y.Scale,Y.Y.Offset+_.Y)
+end
+end))
+onConn(d.InputEnded:Connect(function(Z)
+if Z.UserInputType==Enum.UserInputType.MouseButton1 or Z.UserInputType==Enum.UserInputType.Touch then W=false end
+end))
+end
+enableDrag(I,G);enableDrag(af,af)
+onConn(af.Activated:Connect(function()v.setOpen(not v.isOpen())end))
+
+ac.Parent=ae
+end
+
+
+
+
+local function cueDeflect(ae,af,ag,ah)
+if not(ag and ag.Kind=="Ball"and ag.ObjectDirection)then return nil,nil end
+local ai=ag.CueDirection
+local E=ag.CueDistance
+if ai and E then return ai,E end
+local F=i.Physics
+if not F then return nil,nil end
+if not ai then
+local G=af:Dot(ag.ObjectDirection)
+local H=af-ag.ObjectDirection*(G*(1+(F.BallRestitution or 0.95))/2)
+if H.Magnitude>0.05 then ai=H.Unit end
+end
+if not E then
+local G,H=pcall(function()return k.GetShotSpeed(ae,ah)end)
+local I=k.RollDistance~=nil
+if G and I and H then
+local J=math.sqrt(math.max(H*H-2*(F.RollingDeceleration or 20)*(ag.Distance or 0),0))
+local K=math.clamp(ag.ImpactFraction or 0,0,0.999)
+local L,M=pcall(k.RollDistance,J*math.sqrt(1-K*K))
+if L then E=M end
+end
+end
+return ai,E
+end
+
+local function renderGuides()
+beginDraw()
+local ae=u.Input
+local af=ae and ae.Simulation
+local ag,ah=mySeat()
+local ai=ah and ah.Phase=="Playing"
+if not ai or not af then endDraw();return end
+
+
+if r.PocketMarkers then
+for E,F in ipairs(y)do
+local G,H=tableToScreen(F.VisualCentre)
+if H then drawCircle(G,math.max(inchesToScreen(F.Radius),5),s.Warn,2,1.0,0.2)end
+end
+end
+
+
+if r.OppAim and ag and ah.Turn~=ag and af.Settled then
+local E=ah.Aim
+if E and(E.Seat or 0)>0 and E.Seat~=ag and not E.Placing then
+local F=Vector2.new(E.DirX or 0,E.DirY or 0)
+if F.Magnitude>1e-4 then
+local G=getCue(af)
+if G and isActive(G)then
+local H=G.Position
+if ah.BallInHand and E.CueX then H=Vector2.new(E.CueX,E.CueY)end
+local I,J=pcall(k.PredictShot,af,F.Unit,E.Power or 0,Vector2.new(E.SpinX or 0,E.SpinY or 0),1.6666666666666665E-2)
+if I and J then
+local K=tableToScreen(H)
+local L=tableToScreen(J.Ghost or H)
+if K and L then drawLine(K,L,s.Enemy,1.5,0.35)end
+if J.Kind=="Ball"and J.Other and J.ObjectDirection then
+local M=af.Balls[J.Other]
+if M then
+local N=r.LongLines and r.LineLength or(J.ObjectDistance or 40)
+local O,P=extendPath(M.Position,J.ObjectDirection,N)
+drawSplitPath(O,J.ObjectDistance,s.Enemy,2,0.25,0.75)
+if P then
+local Q,R=tableToScreen(P.VisualCentre)
+if R then drawCircle(Q,math.max(inchesToScreen(P.Radius),5),s.Enemy,2.2,1.0,0.2)end
+end
+end
+end
+end
+end
+end
+end
+end
+
+if not r.GodGuides then endDraw();return end
+local E=getCue(af)
+if not(E and isActive(E)and af.Settled)then endDraw();return end
+local F=ae.State
+if F~="Aiming"and F~="Charging"then endDraw();return end
+local G=math.max(inchesToScreen(i.BallRadius),3)
+
+
+if r.Highlight then
+local H=getTargets(af)
+for I,J in ipairs(H)do
+local K,L=tableToScreen(J.Position)
+if L then drawCircle(K,G*1.35,J.Number==8 and s.Warn or s.Good,2,1.0,0.15)end
+end
+end
+
+local H=ae.Direction
+if not H or H.Magnitude<1e-4 then endDraw();return end
+H=H.Unit
+local I=math.max(ae.Power or 0,0)
+local J=(ae.Hud and ae.Hud.Spin)or Vector2.zero
+
+local K,L=pcall(k.PredictShot,af,H,I,J,1.6666666666666665E-2)
+if not K or not L then endDraw();return end
+
+local M=tableToScreen(E.Position)
+local N=L.Ghost or E.Position
+local O=tableToScreen(N)
+if M and O then drawLine(M,O,s.Cue,2,0.15)end
+
+if L.Kind=="Ball"and L.Other then
+local P=af.Balls[L.Other]
+local Q=P and isLegalFirst(L.Other)
+local R=Q and s.Good or s.Bad
+if O then drawCircle(O,G,R,2,1.0,0.1)end
+if P and L.ObjectDirection and L.ObjectDistance then
+local S=r.LongLines and r.LineLength or L.ObjectDistance
+local T,U=extendPath(P.Position,L.ObjectDirection,S)
+if r.LongLines then
+drawSplitPath(T,L.ObjectDistance,R,2.5,0.1,0.65)
+drawGhostChain(T,R,G*0.55,6,20)
+else
+drawSplitPath(T,L.ObjectDistance,R,2.5,0.12,1)
+end
+if U then
+local V,W=tableToScreen(U.VisualCentre)
+if W then drawCircle(V,math.max(inchesToScreen(U.Radius),5),s.Good,2.5,1.0,0.05)end
+end
+end
+local S,T=cueDeflect(af,H,L,I)
+if S and T and T>0.5 then
+local U=r.LongLines and r.LineLength or T
+local V,W=extendPath(N,S,U)
+if r.LongLines then
+drawSplitPath(V,T,s.Deflect,2,0.15,0.7)
+drawGhostChain(V,s.Deflect,G*0.5,6,20)
+else
+drawSplitPath(V,T,s.Deflect,2,0.2,1)
+end
+if W then
+local X,Y=tableToScreen(W.VisualCentre)
+if Y then drawCircle(X,math.max(inchesToScreen(W.Radius),5),s.Bad,2.5,1.0,0.05)end
+end
+end
+elseif O and L.Kind~="None"then
+drawCircle(O,G,s.Warn,2,1.0,0.2)
+end
+
+
+local P=B.best
+if P and P.PowerLabel and P.Ghost then
+local Q=tableToScreen(P.Ghost)
+if Q then
+A.PowerTag.Position=UDim2.fromOffset(Q.X,Q.Y-18)
+A.PowerTag.Text="⚡ "..P.PowerLabel.." "..math.floor((P.Power or 1)*100).."%"
+local R=s.Almighty
+if P.PowerLabel=="SOFT"then R=s.Good
+elseif P.PowerLabel=="CTRL"then R=s.Accent
+elseif P.PowerLabel=="MED"then R=s.Warn end
+A.PowerTag.TextColor3=R;A.PtStroke.Color=R
+A.PowerTag.Visible=true
+else
+A.PowerTag.Visible=false
+end
+else
+A.PowerTag.Visible=false
+end
+
+endDraw()
+end
+
+local function updateStatus()
+if not v.ChipTurn then return end
+local ae=u.Input
+local af=isMyTurn()
+if not ae then
+v.ChipTurn.Text="WAITING";v.ChipTurn.TextColor3=s.TextDim
+v.ChipGroup.Text="—";v.ChipGroup.TextColor3=s.TextDim
+v.ChipInfo.Text="—";return
+end
+v.ChipTurn.Text=af and"▶ YOU"or"⏳ OPP"
+v.ChipTurn.TextColor3=af and s.Good or s.Warn
+local ag=getMyGroup()
+v.ChipGroup.Text=ag=="Solid"and"● SOL"or(ag=="Stripe"and"◍ STR"or"OPEN")
+v.ChipGroup.TextColor3=ag=="Solid"and s.Warn or(ag=="Stripe"and s.Accent or s.TextDim)
+local ah=ae.Simulation
+if ah then
+local ai,E=0,0
+for F=1,15 do local G=ah.Balls[F];if isActive(G)then if F<8 then ai+=1 elseif F>8 then E+=1 end end end
+v.ChipInfo.Text=string.format("●%d ◍%d",ai,E)
+end
+end
+
+
+
+
+local ae=false
+local af=false
+local ag
+local ah=false
+local ai
+
+local function stickyStep()
+if not r.StickyAim then return end
+local E=u.Input
+if not(E and E.State=="Aiming")then return end
+local F=B.best or B.compute(false)
+if F then ab.aimAt(F.Dir,true)end
+end
+
+local function aimAssistStep(E)
+if not r.AimAssist or r.StickyAim or ab.aimAnimating()or ae then
+if ah then ah=false;ab.releaseAim()end;return
+end
+local F=u.Input
+if not(F and F.State=="Aiming")or not isMyTurn()then
+if ah then ah=false;ab.releaseAim()end;return
+end
+local G=F.Direction
+if not G or G.Magnitude<1e-4 then return end
+G=G.Unit
+local H=B.best or B.compute(false)
+if not(H and H.Dir)then return end
+local I=math.clamp(G:Dot(H.Dir),-1,1)
+local J=math.acos(I)
+if J>math.rad(12)then if ah then ah=false;ab.releaseAim()end;return end
+local K=d:GetMouseLocation()
+local L=ai and(K-ai).Magnitude or 0
+ai=K
+if L>4 then if ah then ah=false;ab.releaseAim()end;return end
+local M=G.X*H.Dir.Y-G.Y*H.Dir.X
+local N=M>=0 and 1 or-1
+if J<0.005 then F.Direction=H.Dir
+else
+local O=math.clamp(J*E*7,0.002,J)
+local P=math.atan2(G.Y,G.X)+N*O
+F.Direction=Vector2.new(math.cos(P),math.sin(P))
+end
+F.AimLocked=true;ah=true
+end
+
+local function aimAnimStep()
+if not aa then return end
+local E=u.Input
+if not E then aa=nil;return end
+local F=aa
+local G=math.clamp((os.clock()-F.t0)/F.dur,0,1)
+local H=1-(1-G)^3
+local I=F.total*H
+E.Direction=Vector2.new(math.cos(F.base+F.turn*I),math.sin(F.base+F.turn*I))
+if G>=1 then
+E.Direction=Vector2.new(math.cos(F.base+F.turn*F.total),math.sin(F.base+F.turn*F.total))
+aa=nil
+end
+end
+
+local function automationStep()
+local E=u.Input
+if not E then return end
+local F=E.State
+local G,H,I=isMyTurn()
+
+local J=H and(tostring(H.ShotIndex)..":"..tostring(H.Turn))or nil
+if J~=ag then
+ag=J
+af=false
+if H and H.Turn==I then
+task.defer(function()B.compute(true)end)
+end
+end
+
+
+if F=="BallInHand"and r.AutoPlaceBIH and not af and G then
+af=true
+task.spawn(function()
+task.wait(0.2)
+if u.Input and u.Input.State=="BallInHand"then
+ab.placeBest()
+task.wait(0.1)
+B.bestKey=nil
+B.compute(true)
+end
+end)
+end
+
+if r.AutoPlay and G and not ae and(F=="Aiming"or(F=="BallInHand"and af))then
+ae=true
+local K=F=="BallInHand"
+task.spawn(function()
+task.wait(math.max(r.AutoDelay or 0.6,0.25))
+local L=u.Input
+local M=L and L.State
+if not(r.AutoPlay and L and(M=="Aiming"or(M=="BallInHand"and K)))then
+ae=false;return
+end
+local N=B.compute(true)
+if N then
+
+if N.Ball and N.Ball.Number==8 then
+local O=(L.Hud and L.Hud.Spin)or Vector2.zero
+local P=simulate(L.Simulation,N.Dir,N.Power,O,N.Ball)
+if not P or not P.TargetPotted or P.CuePotted then
+x("🛡 Safety","8-ball shot unsafe — playing safe",s.Warn)
+
+ae=false;return
+end
+end
+ab.aimSmooth(N.Dir,0.28)
+local O=os.clock()
+while ab.aimAnimating()and os.clock()-O<1.0 do task.wait(0.02)end
+task.wait(0.08)
+if u.Input and(u.Input.State=="Aiming"or(K and u.Input.State=="BallInHand"))then
+ab.fire(N.Dir,N.Power)
+end
+end
+ab.releaseAim()
+ae=false
+end)
+end
+
+if not G or F=="Simulating"then ae=false end
+end
+
+onConn(b.RenderStepped:Connect(function(E)
+pcall(function()
+updateStatus()
+renderGuides()
+aimAnimStep()
+stickyStep()
+aimAssistStep(E)
+automationStep()
+end)
+end))
+
+
+
+
+onConn(d.InputBegan:Connect(function(E,F)
+if F then return end
+if E.KeyCode==Enum.KeyCode.RightShift then v.setOpen(not v.isOpen())
+elseif E.KeyCode==Enum.KeyCode.T then
+local G=B.compute(true)
+if G and u.Input then ab.aimAt(G.Dir,true);task.delay(0.8,ab.releaseAim)
+x("🎯 Locked",string.format("Ball %d",G.Ball.Number),s.Accent)end
+elseif E.KeyCode==Enum.KeyCode.G then ab.shootBest()
+elseif E.KeyCode==Enum.KeyCode.B then ab.placeBest()end
+end))
+
+
+
+
+local E=false
+local function Unload()
+if E then return end
+E=true
+for F,G in ipairs(w)do pcall(function()G:Disconnect()end)end
+uninstallHooks()
+if v.Gui then pcall(function()v.Gui:Destroy()end)end
+if A.Gui then pcall(function()A.Gui:Destroy()end)end
+_G.__POOLGOD=nil
+end
+
+_G.__POOLGOD={Unload=Unload,Settings=r,Solver=B,Actions=ab,Live=u,UI=v}
+x("⚡ Pool God v7.0","ALMIGHTY PERFECTED — Never Loses",s.Almighty)
+
+end)
+if not a then
+_G.__POOLGOD_LOADERR=tostring(aa)
+end
